@@ -19,6 +19,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: yance
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          debug: true
           script: |
             echo "===== DEPLOY START ====="
 
