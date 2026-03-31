@@ -1,7 +1,7 @@
-require("dotenv").config();
+require('dotenv').config();
 
-const express = require("express");
-const { Pool } = require("pg");
+const express = require('express');
+const { Pool } = require('pg');
 
 const app = express();
 app.use(express.json());
@@ -14,38 +14,37 @@ const pool = new Pool({
   port: process.env.DB_PORT,
 });
 
-
-app.get("/api/todos", async (req, res) => {
+app.get('/api/todos', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM todos ORDER BY id DESC");
+    const result = await pool.query('SELECT * FROM todos ORDER BY id DESC');
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error");
+    res.status(500).send('Error');
   }
 });
 
-app.post("/api/todos", async (req, res) => {
+app.post('/api/todos', async (req, res) => {
   try {
     const { title } = req.body;
     const result = await pool.query(
-      "INSERT INTO todos(title) VALUES($1) RETURNING *",
-      [title]
+      'INSERT INTO todos(title) VALUES($1) RETURNING *',
+      [title],
     );
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error");
+    res.status(500).send('Error');
   }
 });
 
-app.delete("/api/todos/:id", async (req, res) => {
+app.delete('/api/todos/:id', async (req, res) => {
   try {
-    await pool.query("DELETE FROM todos WHERE id=$1", [req.params.id]);
+    await pool.query('DELETE FROM todos WHERE id=$1', [req.params.id]);
     res.sendStatus(204);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error");
+    res.status(500).send('Error');
   }
 });
 
