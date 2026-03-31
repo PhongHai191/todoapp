@@ -1,8 +1,58 @@
 name: Deploy TodoApp (Develop)
-
 on:
   push:
-    branches: [ "develop" ]
+    branches: ["develop"]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Setup Node
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "18"
+
+    # 3. Check structure
+    - name: Check project structure
+      run: |
+        set -e
+        echo "Checking folders..."
+        test -d backend || (echo "backend missing" && exit 1)
+        test -d frontend || (echo "frontend missing" && exit 1)
+        echo "Structure OK"
+
+    # 4. Validate files
+    - name: Validate required files
+      run: |
+        set -e
+        echo "Checking required files..."
+        test -f backend/package.json || (echo "backend/package.json missing" && exit 1)
+        test -f nginx.cf || (echo "nginx.cf missing" && exit 1)
+        echo "Files OK"
+
+    # 5. Install backend deps
+    - name: Install backend
+      run: |
+        set -e
+        cd backend
+        npm ci
+
+    # 6. Lint + format check
+    - name: Code quality check
+      run: |
+        set -e
+        echo "Running lint..."
+        cd backend
+        npm run lint
+
+        echo "Running format check..."
+        npm run format:check
 
 jobs:
   deploy:
