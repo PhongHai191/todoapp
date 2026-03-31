@@ -54,10 +54,9 @@ jobs:
         echo "Running format check..."
         npm run format:check
 
-jobs:
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
-
     steps:
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.0
