@@ -19,8 +19,7 @@ jobs:
           cd /home/ec2-user/todoapp
 
           git fetch origin
-          git checkout develop
-          git pull origin develop
+          git reset --hard origin/develop
 
           # =========================
           # BACKEND
