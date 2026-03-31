@@ -1,17 +1,7 @@
+
 server {
     listen 80;
-    server_name Lab2.com www.Lab2.com;
-
-    root /var/www/html;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ =404;
-    }
-}
-server {
-    listen 80;
-    server_name todoapp.Lab2.com;
+    server_name _;
 
     root /var/www/todoapp;
     index index.html;
