@@ -41,7 +41,7 @@ jobs:
       run: |
         IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-nginx
 
-        docker build -t $IMAGE:${{ github.sha }} .
+        docker build -t $IMAGE:${{ github.sha }} ./nginx
         docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
 
         docker push $IMAGE:${{ github.sha }}
