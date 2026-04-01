@@ -1,11 +1,64 @@
-name: CD with ECR
+name: CI/CD Pipeline
 
 on:
   push:
     branches: ["develop_docker"]
 
 jobs:
-  deploy:
+  ci:
+  runs-on: ubuntu-latest
+
+  steps:
+  # 1. Checkout
+  - name: Checkout code
+    uses: actions/checkout@v3
+
+  # 2. Setup Node
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "18"
+
+  # 3. Check structure
+  - name: Check project structure
+    run: |
+      set -e
+      test -d backend || (echo "backend missing" && exit 1)
+      test -d frontend || (echo "frontend missing" && exit 1)
+
+  # 4. Validate files
+  - name: Validate required files
+    run: |
+      set -e
+      test -f backend/package.json || (echo "backend/package.json missing" && exit 1)
+      test -f nginx/nginx.conf || (echo "nginx.conf missing" && exit 1)
+
+  # 5. Install backend deps
+  - name: Install backend
+    run: |
+      cd backend
+      npm ci
+
+  # 6. Lint + format
+  - name: Code quality check
+    run: |
+      cd backend
+      npm run lint
+      npm run format:check
+
+  # 7. Build backend Docker image 
+  - name: Build backend image
+    run: |
+      docker build -t test-backend ./backend
+
+  # 8. Build nginx Docker image 
+  - name: Build nginx image
+    run: |
+      docker build -t test-nginx -f nginx/Dockerfile .
+
+
+  cd:
+    needs: ci 
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +76,7 @@ jobs:
 
     # 3. Login ECR
     - name: Login to ECR
-      uses: aws-actions/amazon-ecr-login@v2 
+      uses: aws-actions/amazon-ecr-login@v2
 
     # 4. Build & Push backend
     - name: Build backend
@@ -31,8 +84,6 @@ jobs:
         IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-backend
 
         docker build -t $IMAGE:${{ github.sha }} ./backend
-        docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
-
         docker push $IMAGE:${{ github.sha }}
 
     # 5. Build & Push nginx
@@ -41,11 +92,9 @@ jobs:
         IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-nginx
 
         docker build -t $IMAGE:${{ github.sha }} -f nginx/Dockerfile .
-        docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
-
         docker push $IMAGE:${{ github.sha }}
 
-    # 6. Deploy
+    # 6. Deploy EC2
     - name: Deploy EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
@@ -55,7 +104,7 @@ jobs:
         script: |
           cd /home/ec2-user/todoapp
 
-          # login ECR trên EC2
+          # login ECR
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
             | docker login --username AWS --password-stdin \
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
@@ -64,7 +113,7 @@ jobs:
           sed -i '/^TAG=/d' .env
           echo "TAG=${{ github.sha }}" >> .env
 
-          # pull + run
-          docker compose pull 
+          # deploy
+          docker compose pull
           docker compose down
           docker compose up -d
