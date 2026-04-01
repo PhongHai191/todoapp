@@ -6,55 +6,55 @@ on:
 
 jobs:
   ci:
-  runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-  steps:
-  # 1. Checkout
-  - name: Checkout code
-    uses: actions/checkout@v3
+    steps:
+    # 1. Checkout
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-  # 2. Setup Node
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
+    # 2. Setup Node
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
       node-version: "18"
 
   # 3. Check structure
-  - name: Check project structure
-    run: |
-      set -e
-      test -d backend || (echo "backend missing" && exit 1)
-      test -d frontend || (echo "frontend missing" && exit 1)
+    - name: Check project structure
+      run: |
+        set -e
+        test -d backend || (echo "backend missing" && exit 1)
+        test -d frontend || (echo "frontend missing" && exit 1)
 
   # 4. Validate files
-  - name: Validate required files
-    run: |
-      set -e
-      test -f backend/package.json || (echo "backend/package.json missing" && exit 1)
-      test -f nginx/nginx.conf || (echo "nginx.conf missing" && exit 1)
+    - name: Validate required files
+      run: |
+        set -e
+        test -f backend/package.json || (echo "backend/package.json missing" && exit 1)
+        test -f nginx/nginx.conf || (echo "nginx.conf missing" && exit 1)
 
   # 5. Install backend deps
-  - name: Install backend
-    run: |
-      cd backend
-      npm ci
+    - name: Install backend
+      run: |
+        cd backend
+        npm ci
 
   # 6. Lint + format
-  - name: Code quality check
-    run: |
-      cd backend
-      npm run lint
-      npm run format:check
+    - name: Code quality check
+      run: |
+        cd backend
+        npm run lint
+        npm run format:check
 
   # 7. Build backend Docker image 
-  - name: Build backend image
-    run: |
-      docker build -t test-backend ./backend
+    - name: Build backend image
+      run: |
+        docker build -t test-backend ./backend
 
-  # 8. Build nginx Docker image 
-  - name: Build nginx image
-    run: |
-      docker build -t test-nginx -f nginx/Dockerfile .
+    # 8. Build nginx Docker image 
+    - name: Build nginx image
+      run: |
+        docker build -t test-nginx -f nginx/Dockerfile .
 
 
   cd:
