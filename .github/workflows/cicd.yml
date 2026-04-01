@@ -23,7 +23,7 @@ jobs:
 
     # 3. Login ECR
     - name: Login to ECR
-      uses: aws-actions/amazon-ecr-login@v2
+      uses: aws-actions/amazon-ecr-login@v2 
 
     # 4. Build & Push backend
     - name: Build backend
@@ -63,8 +63,10 @@ jobs:
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
           # update TAG
-          sed -i 's/^TAG=.*/TAG=${{ github.sha }}/' .env
+          sed -i '/^TAG=/d' .env
+          echo "TAG=${{ github.sha }}" >> .env
 
           # pull + run
           docker compose pull
+          docker compose down
           docker compose up -d
