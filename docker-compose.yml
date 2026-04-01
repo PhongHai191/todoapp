@@ -1,33 +1,36 @@
 version: "3.8"
 
 services:
-  postgres:
+
+  db:
     image: postgres:15
-    container_name: postgres
+    container_name: db
+    restart: always
     env_file:
       - .env
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
+
   backend:
-    build: ./backend
+    image: 529646246979.dkr.ecr.ap-southeast-2.amazonaws.com/todo-backend:${TAG}
     container_name: backend
+    restart: always
     env_file:
       - .env
     depends_on:
-      - postgres
+      - db
+
 
   nginx:
-    image: nginx:alpine
+    image: 529646246979.dkr.ecr.ap-southeast-2.amazonaws.com/todo-nginx:${TAG}
     container_name: nginx
+    restart: always
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./frontend:/usr/share/nginx/html
     depends_on:
       - backend
 
 volumes:
-  pgdata:
+  db_data:

@@ -1,0 +1,70 @@
+name: CD with ECR
+
+on:
+  push:
+    branches: ["develop_docker"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # 2. Config AWS
+    - name: Configure AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # 3. Login ECR
+    - name: Login to ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # 4. Build & Push backend
+    - name: Build backend
+      run: |
+        IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-backend
+
+        docker build -t $IMAGE:${{ github.sha }} ./backend
+        docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
+
+        docker push $IMAGE:${{ github.sha }}
+        docker push $IMAGE:latest
+
+    # 5. Build & Push nginx
+    - name: Build nginx
+      run: |
+        IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-nginx
+
+        docker build -t $IMAGE:${{ github.sha }} .
+        docker tag $IMAGE:${{ github.sha }} $IMAGE:latest
+
+        docker push $IMAGE:${{ github.sha }}
+        docker push $IMAGE:latest
+
+    # 6. Deploy
+    - name: Deploy EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ec2-user
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /home/ec2-user/todoapp
+
+          # login ECR trên EC2
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+            | docker login --username AWS --password-stdin \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+          # update TAG
+          sed -i 's/^TAG=.*/TAG=${{ github.sha }}/' .env
+
+          # pull + run
+          docker compose pull
+          docker compose up -d
