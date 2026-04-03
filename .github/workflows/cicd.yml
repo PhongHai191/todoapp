@@ -121,3 +121,48 @@ jobs:
             docker compose down --remove-orphans
             docker compose pull
             docker compose up -d
+
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP2 }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+
+            cd /home/ec2-user/todoapp
+
+            echo "=== WAIT FOR SERVICES ==="
+            sleep 10
+
+            echo "=== CHECK CONTAINERS ==="
+            docker ps
+
+            docker ps | grep backend || (echo "backend not running" && exit 1)
+            docker ps | grep nginx || (echo "nginx not running" && exit 1)
+
+            echo "=== HEALTH CHECK ==="
+
+            check_health () {
+              URL=$1
+              NAME=$2
+
+              for i in {1..5}; do
+                if curl -f $URL > /dev/null 2>&1; then
+                  echo "$NAME OK"
+                  return 0
+                fi
+                echo "$NAME retry $i..."
+                sleep 5
+              done
+
+              echo "$NAME FAILED"
+              docker compose logs --tail=50
+              exit 1
+            }
+
+            check_health "http://localhost:3000/health" "Backend + DB"
+
+            echo "=== DEPLOY SUCCESS ==="
