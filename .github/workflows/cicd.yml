@@ -149,7 +149,7 @@ jobs:
               NAME=$2
 
               for i in {1..10}; do
-                if curl -f $URL > /dev/null 2>&1; then
+                if curl -f $URL > /dev/null; then
                   echo "$NAME OK"
                   return 0
                 fi
@@ -158,6 +158,7 @@ jobs:
               done
 
               echo "$NAME FAILED"
+              curl -v $URL
               docker compose logs --tail=50
               exit 1
             }
