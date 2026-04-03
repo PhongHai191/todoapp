@@ -47,7 +47,7 @@ app.delete('/api/todos/:id', async (req, res) => {
     res.status(500).send('Error');
   }
 });
-app.get('/health', async (req, res) => {
+app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
     res.status(200).send('OK');

@@ -162,6 +162,6 @@ jobs:
               exit 1
             }
 
-            check_health "http://localhost/health" "Backend + DB"
+            check_health "http://localhost/api/health" "Backend + DB"
 
             echo "=== DEPLOY SUCCESS ==="
