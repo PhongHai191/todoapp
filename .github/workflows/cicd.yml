@@ -23,7 +23,7 @@ jobs:
           test -d backend || (echo "backend missing" && exit 1)
           test -d frontend || (echo "frontend missing" && exit 1)
           test -f docker-compose.yml || (echo "docker-compose.yml missing" && exit 1)
-          test -f init.sql || (echo "init.sql missing" && exit 1)
+          test -f database/init.sql || (echo "init.sql missing" && exit 1)
 
       - name: Install backend deps
         run: |
