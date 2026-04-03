@@ -69,7 +69,17 @@ jobs:
           IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-nginx
           docker build -t $IMAGE:${{ github.sha }} -f nginx/Dockerfile .
           docker push $IMAGE:${{ github.sha }}
+      - name: DEBUG FILES
+        run: |
+          echo "==== ROOT ===="
+          ls -la
 
+          echo "==== DATABASE ===="
+          ls -la database || echo "no database folder"
+
+          echo "==== FIND SQL ===="
+          find . -name "*.sql"
+          
       - name: Copy compose & init.sql
         uses: appleboy/scp-action@v0.1.7
         with:
