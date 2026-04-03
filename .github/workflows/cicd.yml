@@ -122,7 +122,6 @@ jobs:
             docker compose pull
             docker compose up -d
 
-
       - name: Verify Deployment
         uses: appleboy/ssh-action@v1.0.0
         with:

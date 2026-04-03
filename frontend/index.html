@@ -1,53 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <title>Todo App</title>
-</head>
-<body>
-  <h1>Todo App12345</h1>
+  <head>
+    <title>Todo App</title>
+  </head>
+  <body>
+    <h1>Todo App12345</h1>
 
-  <input id="todoInput" placeholder="" />
-  <button onclick="addTodo()">Add</button>
+    <input id="todoInput" placeholder="" />
+    <button onclick="addTodo()">Add</button>
 
-  <ul id="list"></ul>
+    <ul id="list"></ul>
 
-<script>
-async function loadTodos() {
-  const res = await fetch("/api/todos");
-  const data = await res.json();
+    <script>
+      async function loadTodos() {
+        const res = await fetch("/api/todos");
+        const data = await res.json();
 
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+        const list = document.getElementById("list");
+        list.innerHTML = "";
 
-  data.forEach(todo => {
-    const li = document.createElement("li");
-    li.innerHTML = `
+        data.forEach((todo) => {
+          const li = document.createElement("li");
+          li.innerHTML = `
       ${todo.title}
       <button onclick="deleteTodo(${todo.id})">x</button>
     `;
-    list.appendChild(li);
-  });
-}
+          list.appendChild(li);
+        });
+      }
 
-async function addTodo() {
-  const input = document.getElementById("todoInput");
+      async function addTodo() {
+        const input = document.getElementById("todoInput");
 
-  await fetch("/api/todos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: input.value })
-  });
+        await fetch("/api/todos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: input.value }),
+        });
 
-  input.value = "";
-  loadTodos();
-}
+        input.value = "";
+        loadTodos();
+      }
 
-async function deleteTodo(id) {
-  await fetch("/api/todos/" + id, { method: "DELETE" });
-  loadTodos();
-}
+      async function deleteTodo(id) {
+        await fetch("/api/todos/" + id, { method: "DELETE" });
+        loadTodos();
+      }
 
-loadTodos();
-</script>
-</body>
+      loadTodos();
+    </script>
+  </body>
 </html>
