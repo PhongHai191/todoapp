@@ -9,48 +9,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
-      # 3. Check structure
-      - name: Check project structure
+      - name: Validate structure
         run: |
           set -e
           test -d backend || (echo "backend missing" && exit 1)
           test -d frontend || (echo "frontend missing" && exit 1)
+          test -f docker-compose.yml || (echo "docker-compose.yml missing" && exit 1)
+          test -f init.sql || (echo "init.sql missing" && exit 1)
 
-      # 4. Validate files
-      - name: Validate required files
-        run: |
-          set -e
-          test -f backend/package.json || (echo "backend/package.json missing" && exit 1)
-          test -f nginx/nginx.conf || (echo "nginx.conf missing" && exit 1)
-
-      # 5. Install backend deps
-      - name: Install backend
+      - name: Install backend deps
         run: |
           cd backend
           npm ci
 
-      # 6. Lint + format
-      - name: Code quality check
+      - name: Code quality
         run: |
           cd backend
           npm run lint
           npm run format:check
-
-      # 7. Build backend Docker image
       - name: Build backend image
         run: docker build -t test-backend ./backend
-
-      # 8. Build nginx Docker image
       - name: Build nginx image
         run: docker build -t test-nginx -f nginx/Dockerfile .
 
@@ -84,6 +70,17 @@ jobs:
           docker build -t $IMAGE:${{ github.sha }} -f nginx/Dockerfile .
           docker push $IMAGE:${{ github.sha }}
 
+      - name: Copy compose & init.sql
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP2 }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          source: |
+            docker-compose.yml
+            init.sql
+          target: /home/ec2-user/todoapp
+
       - name: Deploy EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -91,14 +88,38 @@ jobs:
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           script: |
+            set -e
             cd /home/ec2-user/todoapp
 
+            # login ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-            sed -i '/^TAG=/d' .env
-            echo "TAG=${{ github.sha }}" >> .env
+            PARAMS=(
+              DB_USER
+              DB_PASSWORD
+              DB_HOST
+              DB_NAME
+              DB_PORT
+              PORT
+              POSTGRES_USER
+              POSTGRES_PASSWORD
+              POSTGRES_DB
+            )
 
+            for param in "${PARAMS[@]}"; do
+              export $param=$(aws ssm get-parameter \
+                --name "/todo/$param" \
+                --with-decryption \
+                --query "Parameter.Value" \
+                --output text)
+            done
+
+            # image tag
+            export TAG=${{ github.sha }}
+
+            # deploy
+            docker compose down --remove-orphans
             docker compose pull
             docker compose up -d
