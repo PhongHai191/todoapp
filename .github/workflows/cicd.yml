@@ -78,7 +78,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           source: |
             docker-compose.yml
-            init.sql
+            database/init.sql
           target: /home/ec2-user/todoapp
 
       - name: Deploy EC2
