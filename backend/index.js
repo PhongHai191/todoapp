@@ -3,19 +3,31 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const os = require('os');
+const { createClient } = require('redis');
 
 const app = express();
 app.use(express.json());
 
-//  identify container
 const instanceId = os.hostname();
 
-//  count requests
-let requestCount = 0;
+const redis = createClient({
+  url: 'redis://redis:6379',
+});
 
-//  middleware đếm request
-app.use((req, res, next) => {
-  requestCount++;
+redis.on('error', (err) => console.log('Redis error', err));
+
+(async () => {
+  await redis.connect();
+  console.log('Connected to Redis');
+})();
+
+app.use(async (req, res, next) => {
+  try {
+    const key = `requests:${instanceId}`;
+    await redis.incr(key); 
+  } catch (err) {
+    console.error('Redis error:', err);
+  }
   next();
 });
 
@@ -27,6 +39,7 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   max: 5,
 });
+
 
 app.get('/api/todos', async (req, res) => {
   try {
@@ -86,12 +99,43 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.get('/api/dashboard', (req, res) => {
-  res.json({
-    instanceId,
-    requestCount,
-    uptime: process.uptime(),
-  });
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const keys = await redis.keys('requests:*');
+
+    const data = [];
+
+    for (let key of keys) {
+      const count = await redis.get(key);
+
+      data.push({
+        instanceId: key.replace('requests:', ''),
+        requestCount: Number(count),
+      });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error');
+  }
+});
+
+app.get('/api/dashboard/total', async (req, res) => {
+  try {
+    const keys = await redis.keys('requests:*');
+
+    let total = 0;
+
+    for (let key of keys) {
+      const count = await redis.get(key);
+      total += Number(count);
+    }
+
+    res.json({ total });
+  } catch (err) {
+    res.status(500).send('Error');
+  }
 });
 
 const PORT = process.env.PORT || 3000;
