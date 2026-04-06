@@ -20,7 +20,7 @@
         const list = document.getElementById("list");
         list.innerHTML = "";
 
-        result.data.forEach((todo) => {
+        data.data.forEach((todo) => {
           const li = document.createElement("li");
           li.innerHTML = `
       ${todo.title}
