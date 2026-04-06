@@ -25,7 +25,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
-  max: 5
+  max: 5,
 });
 
 app.get('/api/todos', async (req, res) => {
