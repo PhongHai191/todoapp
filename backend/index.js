@@ -23,11 +23,22 @@ redis.on('error', (err) => console.log('Redis error', err));
 
 app.use(async (req, res, next) => {
   try {
-    const key = `requests:${instanceId}`;
-    await redis.incr(key);
+    if (req.path.startsWith('/api/')) {
+
+      let route = req.path;
+
+      if (/^\/api\/todos\/\d+$/.test(route)) {
+        route = '/api/todos/:id';
+      }
+
+      const key = `requests:${instanceId}:${route}`;
+
+      await redis.incr(key);
+    }
   } catch (err) {
-    console.error('Redis error:', err);
+    console.error(err);
   }
+
   next();
 });
 
@@ -102,18 +113,24 @@ app.get('/api/dashboard', async (req, res) => {
   try {
     const keys = await redis.keys('requests:*');
 
-    const data = [];
+    const result = {};
 
     for (let key of keys) {
       const count = await redis.get(key);
 
-      data.push({
-        instanceId: key.replace('requests:', ''),
-        requestCount: Number(count),
-      });
+      const [, instanceId, route] = key.split(':');
+
+      if (!result[instanceId]) {
+        result[instanceId] = {
+          instanceId,
+          routes: {},
+        };
+      }
+
+      result[instanceId].routes[route] = Number(count);
     }
 
-    res.json(data);
+    res.json(Object.values(result));
   } catch (err) {
     console.error(err);
     res.status(500).send('Error');
