@@ -15,7 +15,6 @@ services:
 
   backend:
     image: 529646246979.dkr.ecr.ap-southeast-2.amazonaws.com/todo-backend:${TAG}
-    container_name: backend
     restart: always
     environment:
       DB_USER: ${DB_USER}

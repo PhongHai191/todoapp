@@ -120,7 +120,7 @@ jobs:
             # deploy
             docker compose down --remove-orphans
             docker compose pull
-            docker compose up -d
+            docker compose up -d --scale backend=3
 
       - name: Verify Deployment
         uses: appleboy/ssh-action@v1.0.0
