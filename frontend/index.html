@@ -15,6 +15,7 @@
       async function loadTodos() {
         const res = await fetch("/api/todos");
         const data = await res.json();
+        console.log(data);
 
         const list = document.getElementById("list");
         list.innerHTML = "";
