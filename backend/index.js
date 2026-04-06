@@ -136,23 +136,6 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
-app.get('/api/dashboard/total', async (req, res) => {
-  try {
-    const keys = await redis.keys('requests:*');
-
-    let total = 0;
-
-    for (let key of keys) {
-      const count = await redis.get(key);
-      total += Number(count);
-    }
-
-    res.json({ total });
-  } catch (err) {
-    res.status(500).send('Error');
-  }
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server ${instanceId} running on port ${PORT}`);
