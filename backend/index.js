@@ -24,7 +24,6 @@ redis.on('error', (err) => console.log('Redis error', err));
 app.use(async (req, res, next) => {
   try {
     if (req.path.startsWith('/api/')) {
-
       let route = req.path;
 
       if (/^\/api\/todos\/\d+$/.test(route)) {
