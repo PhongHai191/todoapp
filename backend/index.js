@@ -24,7 +24,7 @@ redis.on('error', (err) => console.log('Redis error', err));
 app.use(async (req, res, next) => {
   try {
     const key = `requests:${instanceId}`;
-    await redis.incr(key); 
+    await redis.incr(key);
   } catch (err) {
     console.error('Redis error:', err);
   }
@@ -39,7 +39,6 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   max: 5,
 });
-
 
 app.get('/api/todos', async (req, res) => {
   try {
