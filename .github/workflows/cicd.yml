@@ -69,6 +69,24 @@ jobs:
           IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/todo-nginx
           docker build -t $IMAGE:${{ github.sha }} -f nginx/Dockerfile .
           docker push $IMAGE:${{ github.sha }}
+      - name: Backup current deployment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP2 }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd /home/ec2-user
+
+            if [ -d "todoapp" ]; then
+              BACKUP_DIR="todoapp_backup_$(date +%Y%m%d_%H%M%S)"
+              cp -r todoapp $BACKUP_DIR
+
+              echo "Backup: $BACKUP_DIR"
+
+              echo $BACKUP_DIR > /tmp/latest_backup
+            fi
 
       - name: Copy compose & init.sql
         uses: appleboy/scp-action@v0.1.7
@@ -88,6 +106,13 @@ jobs:
           script: |
             set -e
             cd /home/ec2-user/todoapp
+            PREVIOUS_TAG=$(docker inspect \
+            $(docker ps -q --filter "name=backend" | head -n1) \
+            --format '{{.Config.Image}}' 2>/dev/null \
+            | cut -d ':' -f2)
+
+            echo "Previous tag: $PREVIOUS_TAG"
+            echo $PREVIOUS_TAG > /tmp/previous_tag
 
             # login ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
@@ -130,39 +155,78 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -e
-
             cd /home/ec2-user/todoapp
 
-            echo "=== WAIT FOR SERVICES ==="
+            PREVIOUS_TAG=$(cat /tmp/previous_tag || echo "")
+
+            rollback () {
+              echo "=== ROLLBACK START ==="
+              PARAMS=(
+              DB_USER DB_PASSWORD DB_HOST DB_NAME DB_PORT
+              PORT POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB
+              )
+
+              for param in "${PARAMS[@]}"; do
+                export $param=$(aws ssm get-parameter \
+                  --name "/todo/$param" \
+                  --with-decryption \
+                  --query "Parameter.Value" \
+                  --output text)
+              done
+
+              BACKUP_DIR=$(cat /tmp/latest_backup || echo "")
+              
+              if [ -z "$BACKUP_DIR" ]; then
+                echo "No backup folder → cannot rollback"
+                exit 1
+              fi
+
+              echo "Restore from $BACKUP_DIR"
+
+              cd /home/ec2-user
+              rm -rf todoapp
+              cp -r $BACKUP_DIR todoapp
+
+              cd /home/ec2-user/todoapp
+
+              if [ -n "$PREVIOUS_TAG" ]; then
+                export TAG=$PREVIOUS_TAG
+              fi
+
+              docker compose down
+              docker compose pull
+              docker compose up -d --scale backend=3
+
+              echo "=== ROLLBACK DONE ==="
+            }
+
+            echo "=== WAIT ==="
             sleep 10
 
-            echo "=== CHECK CONTAINERS ==="
             docker ps
 
-            docker ps | grep backend || (echo "backend not running" && exit 1)
-            docker ps | grep nginx || (echo "nginx not running" && exit 1)
-
-            echo "=== HEALTH CHECK ==="
+            docker ps | grep backend || (echo "backend fail" && rollback && exit 1)
+            docker ps | grep nginx || (echo "nginx fail" && rollback && exit 1)
 
             check_health () {
               URL=$1
-              NAME=$2
 
               for i in {1..10}; do
                 if curl -f $URL > /dev/null; then
-                  echo "$NAME OK"
+                  echo "Health OK"
                   return 0
                 fi
-                echo "$NAME retry $i..."
+                echo "retry $i..."
                 sleep 5
               done
 
-              echo "$NAME FAILED"
-              curl -v $URL
+              echo "Health FAILED"
               docker compose logs --tail=50
+
+              rollback
               exit 1
             }
 
-            check_health "http://localhost/api/health" "Backend + DB"
+            check_health "http://localhost/api/health"
 
             echo "=== DEPLOY SUCCESS ==="
