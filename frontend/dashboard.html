@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Dashboard</title>
+  </head>
+  <body>
+    <h1> Live Dashboard</h1>
+
+    <div id="dashboard">Loading...</div>
+
+    <script>
+      function renderDashboard(data) {
+        let total = 0;
+        const routeMap = {};
+
+        data.forEach((instance) => {
+          Object.entries(instance.routes).forEach(([route, count]) => {
+            total += count;
+            routeMap[route] = (routeMap[route] || 0) + count;
+          });
+        });
+
+        const topRoutes = Object.entries(routeMap)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+
+        let html = `<h2>Total Requests: ${total}</h2>`;
+
+        html += `<h3> Top Routes</h3><ol>`;
+        topRoutes.forEach(([route, count]) => {
+          html += `<li>${route}: ${count}</li>`;
+        });
+        html += `</ol>`;
+
+        html += `<h3>🖥 Instances</h3>`;
+
+        data.forEach((instance) => {
+          html += `<h4>${instance.instanceId}</h4><ul>`;
+          Object.entries(instance.routes).forEach(([route, count]) => {
+            html += `<li>${route}: ${count}</li>`;
+          });
+          html += `</ul>`;
+        });
+
+        document.getElementById("dashboard").innerHTML = html;
+      }
+
+      const eventSource = new EventSource("/api/metrics/stream");
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        renderDashboard(data);
+      };
+    </script>
+  </body>
+</html>

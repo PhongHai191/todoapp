@@ -108,32 +108,61 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.get('/api/dashboard', async (req, res) => {
-  try {
-    const keys = await redis.keys('requests:*');
+async function buildMetrics() {
+  const keys = [];
 
-    const result = {};
+  for await (const key of redis.scanIterator({
+    MATCH: 'requests:*',
+    COUNT: 100,
+  })) {
+    keys.push(key);
+  }
 
-    for (let key of keys) {
-      const count = await redis.get(key);
+  if (keys.length === 0) return [];
 
-      const [, instanceId, route] = key.split(':');
+  const values = await redis.mGet(keys);
 
-      if (!result[instanceId]) {
-        result[instanceId] = {
-          instanceId,
-          routes: {},
-        };
-      }
+  const result = {};
 
-      result[instanceId].routes[route] = Number(count);
+  keys.forEach((key, index) => {
+    const count = Number(values[index] || 0);
+    const [, instanceId, route] = key.split(':');
+
+    if (!result[instanceId]) {
+      result[instanceId] = { instanceId, routes: {} };
     }
 
-    res.json(Object.values(result));
-  } catch (err) {
-    console.error(err);
+    result[instanceId].routes[route] = count;
+  });
+
+  return Object.values(result);
+}
+
+app.get('/api/metrics', async (req, res) => {
+  try {
+    const data = await buildMetrics();
+    res.json(data);
+  } catch {
     res.status(500).send('Error');
   }
+});
+
+app.get('/api/metrics/stream', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = async () => {
+    const data = await buildMetrics();
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  send();
+  const interval = setInterval(send, 2000);
+
+  req.on('close', () => {
+    clearInterval(interval);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
